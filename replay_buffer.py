@@ -11,10 +11,11 @@ Experience = namedtuple('Experience', field_names=['state', 'action', 'reward', 
 rb_logger = logging.getLogger("ReplayBufferLogger")
 DEFAULT_BUFFER_SIZE=1000
 DEFAULT_BATCH_SIZE=64
+DEFAULT_SEED=0x42
 class ReplayBuffer:
     """Basic Experience Replay buffer"""
 
-    def __init__(self, buffer_size:int=DEFAULT_BUFFER_SIZE, batch_size:int=DEFAULT_BATCH_SIZE, seed:int=0x42):
+    def __init__(self, buffer_size:int=DEFAULT_BUFFER_SIZE, batch_size:int=DEFAULT_BATCH_SIZE, seed:int=DEFAULT_SEED):
         """Constructor
 
         Parameters:
@@ -47,12 +48,18 @@ class ReplayBuffer:
         """Returns current length of buffer"""
         return len(self.memory)
 
-    def sample(self, batch_size:int=DEFAULT_BATCH_SIZE, device:str='cpu'):
+    def sample(self, batch_size:int=None, device:str='cpu')->Optional[List[Tuple[torch.Tensor,
+                                                                                               torch.Tensor,
+                                                                                               torch.Tensor,
+                                                                                               torch.Tensor,
+                                                                                               torch.Tensor]]]:
         """Returns a sample for training
 
         Parameters:
             batch_size (int) : size of the sample that needs to be returned, default is 64
         """
+        if batch_size is None:
+            batch_size = self.batch_size
         if batch_size <= 0 or batch_size > self.buffer_size:
             raise ValueError(f"batch size must be greater than 0 and less than or equal to {self.buffer_size}")
         rb_logger.debug("Batch size is %d", batch_size)

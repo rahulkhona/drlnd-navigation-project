@@ -1,16 +1,18 @@
 import pytest
-from priority_replay_buffer import PriorityReplayBuffer
+from replay_buffer import PriorityReplayBuffer
+import numpy as np
+from hyper_parameter_providers import LinearChangeParameterProvider
 
 class TestPriorityReplayBuffer:
     def test_constructor(self):
-        rb = PriorityReplayBuffer()
+        rb = PriorityReplayBuffer(LinearChangeParameterProvider(0.1, 1, 0.1))
         assert rb is not None
         assert rb.buffer_size == 1000
         assert rb.batch_size == 64
         assert rb.uniformity == 0.01
         assert len(rb) == 0
 
-        rb = PriorityReplayBuffer(seed=1)
+        rb = PriorityReplayBuffer(LinearChangeParameterProvider(0.1, 1, 0.1),seed=1)
         assert rb is not None
         assert rb.buffer_size == 1000
         assert rb.batch_size == 64
@@ -18,41 +20,49 @@ class TestPriorityReplayBuffer:
         assert len(rb) == 0
 
         with pytest.raises(ValueError):
-            rb = PriorityReplayBuffer(100, 1000)
+            rb = PriorityReplayBuffer(LinearChangeParameterProvider(0.1, 1, 0.1), buffer_size=100, batch_size=1000)
 
         with pytest.raises(ValueError):
-            rb = PriorityReplayBuffer(uniformity=2)
+            rb = PriorityReplayBuffer(LinearChangeParameterProvider(0.1, 1, 0.1), uniformity=2)
     
     def test_add(self):
-        rb = PriorityReplayBuffer()
-        rb.add([1], 0, 0.0, [2], False, 10)
+        rb = PriorityReplayBuffer(LinearChangeParameterProvider(0.1, 1, 0.1))
+        rb.add(np.array([1]), 0, 0.0, np.array([2]), False)
         assert len(rb) == 1
 
         for i in range(2000):
-            rb.add([1], 0, 0.0, [2], False, 10)
+            rb.add(np.array([1]), 0, 0.0, np.array([2]), False)
 
         assert len(rb) == rb.buffer_size
 
     def test_sample(self):
-        rb = PriorityReplayBuffer(buffer_size=5, batch_size=3)
-        rb.add([1], 0, 0.0, [2], False, 30)
-        rb.add([2], 0, 0.0, [2], False, 20)
-        rb.add([3], 0, 0.0, [2], False, 10)
-        rb.add([4], 0, 0.0, [2], False, 6)
-        rb.add([5], 0, 0.0, [2], False, 4)
+        rb = PriorityReplayBuffer(LinearChangeParameterProvider(0.1, 1, 0.1), buffer_size=5, batch_size=3)
+        rb.add(np.array([1]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([2]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([3]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([4]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([5]), 0, 0.0, np.array([2]), False)
 
-        samples = rb.sample(beta=0.3)
-        assert len(samples) == 6
+        samples, importances, indices = rb.sample()
+        assert len(samples) == 5
         for i in range(len(samples)):
             assert len(samples[i]) == rb.batch_size
 
-        rb = PriorityReplayBuffer(buffer_size=5, batch_size=2)
-        rb.add([1], 0, 0.0, [2], False, 30)
-        rb.add([2], 0, 0.0, [2], False, 20)
-        rb.add([3], 0, 0.0, [2], False, 10)
-        rb.add([4], 0, 0.0, [2], False, 6)
-        rb.add([5], 0, 0.0, [2], False, 4)
-        samples = rb.sample(beta=0.3)
-        assert len(samples) == 6
-        for i in range(len(samples)):
-            assert len(samples[i]) == 2
+        print(type(importances), type(samples[0]), type(indices))
+        assert len(samples[0]) == len(importances)
+        assert len(samples[0]) == len(indices)
+
+    def test_update(self):
+        rb = PriorityReplayBuffer(LinearChangeParameterProvider(0.1, 1, 0.1), buffer_size=5, batch_size=3)
+        rb.add(np.array([1]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([2]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([3]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([4]), 0, 0.0, np.array([2]), False)
+        rb.add(np.array([5]), 0, 0.0, np.array([2]), False)
+
+        samples, importances, indices = rb.sample()
+        print(importances)
+        importances = importances + np.random.normal(0, 1, len(importances))
+        print(importances)
+        rb.update_errors(importances, indices)
+

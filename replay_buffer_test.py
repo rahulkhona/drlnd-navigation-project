@@ -38,7 +38,7 @@ class TestReplayBuffer:
             rb.add(np.array([1]), 0, 0.0, np.array([2]), False)
 
         assert len(rb) == rb.buffer_size
-        samples = rb.sample()
+        samples,_,_ = rb.sample()
         assert len(samples) == 5
         for i in range(len(samples)):
             assert len(samples[i]) == rb.batch_size

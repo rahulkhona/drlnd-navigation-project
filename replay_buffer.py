@@ -72,7 +72,7 @@ class ReplayBuffer:
         next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences])).float().to(device)
         dones = torch.from_numpy(np.vstack([e.done for e in experiences])).bool().to(device)
 
-        return (states, actions, rewards, next_states, dones)
+        return ((states, actions, rewards, next_states, dones), None, None)
 
 
 class PriorityReplayBuffer(ReplayBuffer):

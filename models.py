@@ -44,7 +44,7 @@ class DuelingDQN(nn.Model):
         output = F.ReLU(self.fc2(output))
         value = self.value(output)
         advantage = self.advantage(output)
-        return value, advantage
+        return value + advantage - advantage.mean(dim=1, keepdims=True)
 
     def copyFrom(self, model:nn.Module):
         if type(self) != type(model):

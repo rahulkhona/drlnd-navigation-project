@@ -74,6 +74,9 @@ class ReplayBuffer:
 
         return ((states, actions, rewards, next_states, dones), None, None)
 
+    def update_errors(errors:np.ndarray, indices:np.ndarray):
+        pass
+
 
 class PriorityReplayBuffer(ReplayBuffer):
     """ Priority buffer implementation"""

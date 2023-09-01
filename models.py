@@ -29,7 +29,7 @@ class DQN(nn.Module):
         self.load_state_dict(model.state_dict)
 
 
-class DuelingDQN(nn.Model):
+class DuelingDQN(nn.Module):
     def __init__(self, num_inputs:int, num_outputs:int):
         super(DQN, self).__init__()
         self.num_inputs = num_inputs

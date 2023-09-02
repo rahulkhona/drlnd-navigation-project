@@ -6,12 +6,14 @@ import numpy as np
 from replay_buffer import ReplayBuffer, PriorityReplayBuffer, DEFAULT_BATCH_SIZE, DEFAULT_BUFFER_SIZE, DEFAULT_SEED
 from models import DQN, DuelingDQN
 from hyper_parameter_providers import HyperParameterProvider
+import typing
+from typing import Union
 
 DEFAULT_UPDATE_EVERY:int=4
 DEFAULT_TARGET_UPDATE:int=10
 class FixedTargetDQNAgent:
     def __init__(self, state_size:int, action_size:int,epsProvider:HyperParameterProvider,gammaProvider:HyperParameterProvider,
-                replayBuffer:ReplayBuffer, model:DQN|DuelingDQN, optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
+                replayBuffer:ReplayBuffer, model:Union[DQN,DuelingDQN], optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
                 update_target_every:int=DEFAULT_TARGET_UPDATE):
         if not callable(lossFn):
             raise ValueError("lossFn should be callable")
@@ -20,7 +22,6 @@ class FixedTargetDQNAgent:
         self.epsProvider = epsProvider
         self.gammProvider = gammaProvider
         self.replayBuffer = replayBuffer
-        self.optimizer = optimizer
         self.lossFn = lossFn
         self.update_every = update_every
         self.t_step = 0
@@ -28,6 +29,7 @@ class FixedTargetDQNAgent:
         self.lmodel = model(state_size, action_size).to(self.device)
         self.tmodel = model(state_size, action_size).to(self.device)
         self.tmodel.copyFrom(self.lmodel)
+        self.optimizer = optimizer(self.tmodel.parameters())
         self.prepare_for_new_episode()
         self.update_target_every = update_target_every
         self.update = 0
@@ -60,15 +62,16 @@ class FixedTargetDQNAgent:
         expected_value = current_q_table.gather(1, actions)
         target_next = self.get_target_value(actions, next_states)
         target_value = (rewards + self.gamma * target_next * (1 - dones))
-        loss = self.lossFn(expected_value, target_value)
-        errors = loss.item()
+        element_loss = self.lossFn(expected_value, target_value, reduction="none")
+        errors = element_loss.detach()
         if priorities is not None:
-            loss *= priorities
+            element_loss *= priorities
+        loss = torch.mean(element_loss)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        self.replayBuffer.update_errors(errors.numpy(), indices)
-        self.udpate += 1
+        self.replayBuffer.update_errors(errors.cpu().numpy(), indices)
+        self.update += 1
         if self.update % self.update_target_every == 0:
             # This is hard update, we can also use a moving every update every
             # learning step and update target model with small fraction of local model
@@ -80,7 +83,7 @@ class FixedTargetDQNAgent:
             return np.random.choice(np.arange(self.action_size))
         else:
             with torch.no_grad():
-                return self.lmodel(torch.from_numpy(state).to(self.device)).cpu().max(1)[0].numpy()
+                return self.lmodel(torch.from_numpy(state).float().unsqueeze(0).to(self.device)).max(-1)[1].cpu().numpy()
 
     def step(self, state:np.ndarray, action:int, reward:float, next_state:np.ndarray, done:bool):
         self.replayBuffer.add(state, action, reward, next_state, done)
@@ -89,7 +92,7 @@ class FixedTargetDQNAgent:
 
 class DoubleDQNAgent(FixedTargetDQNAgent):
     def __init__(self, state_size:int, action_size:int,epsProvider:HyperParameterProvider,gammaProvider:HyperParameterProvider,
-                replayBuffer:ReplayBuffer, model:DQN|DuelingDQN, optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY):
+                replayBuffer:ReplayBuffer, model:Union[DQN,DuelingDQN], optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY):
         if not callable(lossFn):
             raise ValueError("lossFn should be callable")
         self.state_size = state_size

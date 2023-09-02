@@ -1,5 +1,6 @@
 import numpy as np
 import typing
+from typing import Union
 
 class HyperParameterProvider:
     def __init__(self):
@@ -10,14 +11,14 @@ class HyperParameterProvider:
         self.increment += 1
         return self.increment
 
-    def get(self)->float|int:
+    def get(self)->Union[float,int]:
         raise NotImplemented("This is abstract class, use a concrete subclass")
 
 class ConstantParameterProvider(HyperParameterProvider):
-    def __init__(self, value:int|float):
+    def __init__(self, value:Union[int,float]):
         super(ConstantParameterProvider, self).__init__()
         self.value = value
-    def get(self)->float|int:
+    def get(self)->Union[float,int]:
         self.increment += 1
         return self.value
 class LinearChangeParameterProvider(HyperParameterProvider):

@@ -67,10 +67,10 @@ class ReplayBuffer:
         experiences = random.sample(self.memory, k=batch_size)
         assert len(experiences) == batch_size
         states = torch.from_numpy(np.vstack([e.state for e in experiences])).float().to(device)
-        actions = torch.from_numpy(np.vstack([e.action for e in experiences])).int().to(device)
+        actions = torch.from_numpy(np.vstack([e.action for e in experiences])).long().to(device)
         rewards = torch.from_numpy(np.vstack([e.reward for e in experiences])).float().to(device)
         next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences])).float().to(device)
-        dones = torch.from_numpy(np.vstack([e.done for e in experiences])).bool().to(device)
+        dones = torch.from_numpy(np.vstack([e.done for e in experiences])).long().to(device)
 
         return ((states, actions, rewards, next_states, dones), None, None)
 
@@ -165,13 +165,13 @@ class PriorityReplayBuffer(ReplayBuffer):
         probs = self.compute_probabilities()
         ind_exps = random.choices(list(enumerate(self.memory)), weights=probs, k=batch_size)
         indices, experiences = list(zip(*ind_exps))
-        sample_probs = probs[[indices]].squeeze()
+        sample_probs = probs[np.array(indices)].squeeze()
         importance_samples = self.compute_importance_sampling(sample_probs)
         states = torch.from_numpy(np.vstack([e.state for e in experiences])).float().to(device)
-        actions = torch.from_numpy(np.vstack([e.action for e in experiences])).int().to(device)
+        actions = torch.from_numpy(np.vstack([e.action for e in experiences])).long().to(device)
         rewards = torch.from_numpy(np.vstack([e.reward for e in experiences])).float().to(device)
         next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences])).float().to(device)
-        dones = torch.from_numpy(np.vstack([e.done for e in experiences])).bool().to(device)
+        dones = torch.from_numpy(np.vstack([e.done for e in experiences])).long().to(device)
         importances = torch.from_numpy(np.vstack([i for i in importance_samples])).float().to(device)
 
         return ((states, actions, rewards, next_states, dones), importances, indices)

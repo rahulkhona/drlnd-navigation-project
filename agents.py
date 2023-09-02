@@ -6,15 +6,16 @@ import numpy as np
 from replay_buffer import ReplayBuffer, PriorityReplayBuffer, DEFAULT_BATCH_SIZE, DEFAULT_BUFFER_SIZE, DEFAULT_SEED
 from models import DQN, DuelingDQN
 from hyper_parameter_providers import HyperParameterProvider
+from models import DQNBase
 import typing
-from typing import Union
+from typing import List, Tuple, Union
 
 DEFAULT_UPDATE_EVERY:int=4
 DEFAULT_TARGET_UPDATE:int=10
 class FixedTargetDQNAgent:
     def __init__(self, state_size:int, action_size:int,epsProvider:HyperParameterProvider,gammaProvider:HyperParameterProvider,
-                replayBuffer:ReplayBuffer, model:Union[DQN,DuelingDQN], optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
-                update_target_every:int=DEFAULT_TARGET_UPDATE):
+                replayBuffer:ReplayBuffer, model:DQNBase, optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
+                update_target_every:int=DEFAULT_TARGET_UPDATE, arch:List[Union[int, Tuple[str, int]]]=[128,64]):
         if not callable(lossFn):
             raise ValueError("lossFn should be callable")
         self.state_size = state_size
@@ -26,8 +27,8 @@ class FixedTargetDQNAgent:
         self.update_every = update_every
         self.t_step = 0
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
-        self.lmodel = model(state_size, action_size).to(self.device)
-        self.tmodel = model(state_size, action_size).to(self.device)
+        self.lmodel = model(state_size, action_size, arch).to(self.device)
+        self.tmodel = model(state_size, action_size, arch).to(self.device)
         self.optimizer = optimizer(self.tmodel.parameters())
         self.update_target_every = update_target_every
         self.update = 0
@@ -90,9 +91,10 @@ class FixedTargetDQNAgent:
 
 class DoubleDQNAgent(FixedTargetDQNAgent):
     def __init__(self, state_size:int, action_size:int,epsProvider:HyperParameterProvider,gammaProvider:HyperParameterProvider,
-                replayBuffer:ReplayBuffer, model:Union[DQN,DuelingDQN], optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
-                update_target_every:int=DEFAULT_TARGET_UPDATE):
-        super(DoubleDQNAgent, self).__init__(state_size, action_size, epsProvider, gammaProvider, replayBuffer, model, optimizer, lossFn, update_every, update_target_every)
+                replayBuffer:ReplayBuffer, model:DQNBase, optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
+                update_target_every:int=DEFAULT_TARGET_UPDATE, arch:List[Union[int, Tuple[str, int]]]=[128, 64]):
+        super(DoubleDQNAgent, self).__init__(state_size, action_size, epsProvider, gammaProvider, replayBuffer, model, optimizer, lossFn, update_every,
+                                             update_target_every, arch)
 
     def get_target_value(self, actions, states):
         target_q_table = self.tmodel(states)

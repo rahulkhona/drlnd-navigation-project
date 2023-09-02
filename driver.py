@@ -2,13 +2,13 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import hyper_parameter_providers as hpp
-from models import DQN, DuelingDQN
+from models import DQN, DuelingDQN, DuelingDQN2, DQN2
 from agents import FixedTargetDQNAgent, DoubleDQNAgent
 from replay_buffer import ReplayBuffer, PriorityReplayBuffer
 from functools import partial
 from unityagents import UnityEnvironment
 import numpy as np
-from collections import deque
+from collections import deque, OrderedDict
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -22,7 +22,7 @@ uniformityProvider = hpp.ConstantParameterProvider(0.9)
 betaProvider = hpp.ExponentialChangeParameterProvider(0.1, 1, 0.1)
 lossFun = F.mse_loss
 optimizer = partial(optim.Adam, lr=alphaProvider.get())
-model = DuelingDQN
+model = DuelingDQN2
 agent = FixedTargetDQNAgent
 buffer_size=2000
 batch_size=64
@@ -39,10 +39,12 @@ brain = env.brains[brain_name]
 env_info = env.reset(train_mode=True)[brain_name]
 state_size =  len(env_info.vector_observations[0])
 action_size = brain.vector_action_space_size
+#arch=[1024, 256, 128]
+arch = [("NL", 1024), ("R", 1024), ("L", 256), ("L", 64),("R", 64)]
 #replay_buffer = PriorityReplayBuffer(buffer_size=buffer_size, batch_size=batch_size, seed=seed, betaProvider=betaProvider, uniformity=uniformityProvider.get())
 replay_buffer = ReplayBuffer(buffer_size=buffer_size, batch_size=batch_size, seed=seed)
 agent = DoubleDQNAgent(state_size, action_size, epsProvider, gammaProvider, replay_buffer, model, optimizer, lossFun,
-                            update_every=update_every, update_target_every=update_target_every)
+                            update_every=update_every, update_target_every=update_target_every, arch=arch)
 
 scores=[]
 scores_window = deque(maxlen=score_window_len)

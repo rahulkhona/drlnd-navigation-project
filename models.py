@@ -14,8 +14,8 @@ class DQN(nn.Module):
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
         self.fc1 = nn.Linear(in_features = num_inputs, out_features=64)
-        self.fc2 = nn.Linear(in_features = 64, out_features=128)
-        self.fc3 = nn.Linear(in_features = 128, out_features=num_outputs)
+        self.fc2 = nn.Linear(in_features = 128, out_features=64)
+        self.fc3 = nn.Linear(in_features = 64, out_features=num_outputs)
 
     def forward(self, x:torch.Tensor)->torch.Tensor:
         output = F.relu(self.fc1(x))
@@ -34,10 +34,10 @@ class DuelingDQN(nn.Module):
         super(DuelingDQN, self).__init__()
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
-        self.fc1 = nn.Linear(in_features = num_inputs, out_features=64)
-        self.fc2 = nn.Linear(in_features = 64, out_features=128)
-        self.value = nn.Linear(in_features = 128, out_features=1)
-        self.advantage = nn.Linear(in_features = 128, out_features=num_outputs)
+        self.fc1 = nn.Linear(in_features = num_inputs, out_features=128)
+        self.fc2 = nn.Linear(in_features = 128, out_features=64)
+        self.value = nn.Linear(in_features = 64, out_features=1)
+        self.advantage = nn.Linear(in_features = 64, out_features=num_outputs)
 
     def forward(self, x:torch.Tensor)->torch.Tensor:
         output = F.relu(self.fc1(x))

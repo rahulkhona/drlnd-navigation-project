@@ -10,6 +10,7 @@ from unityagents import UnityEnvironment
 import numpy as np
 from collections import deque
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 # hyper parameters
 #epsProvider = hpp.ExponentialChangeParameterProvider(1, 0.05, -0.001)
@@ -25,10 +26,10 @@ model = DuelingDQN
 agent = FixedTargetDQNAgent
 buffer_size=2000
 batch_size=64
-seed=0x42
+seed=0x100
 update_every=4
 update_target_every=150
-max_steps=2000
+max_steps=300
 score_window_len=100
 good_score_threshold=13
 
@@ -46,6 +47,10 @@ agent = DoubleDQNAgent(state_size, action_size, epsProvider, gammaProvider, repl
 scores=[]
 scores_window = deque(maxlen=score_window_len)
 saved=False
+now = datetime.now()
+current_time = now.strftime("%H:%M:%S")
+print("Current Time =", current_time)
+
 for episode in range(1, num_episodes):
     if (episode -1) % 100 == 0:
         print("Starting Episode number:", episode)
@@ -74,6 +79,9 @@ for episode in range(1, num_episodes):
         saved = True
         break
 
+now = datetime.now()
+current_time = now.strftime("%H:%M:%S")
+print("Current Time =", current_time)
 print(scores)
 
 fig = plt.figure()

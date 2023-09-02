@@ -28,7 +28,6 @@ class FixedTargetDQNAgent:
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
         self.lmodel = model(state_size, action_size).to(self.device)
         self.tmodel = model(state_size, action_size).to(self.device)
-        self.tmodel.copyFrom(self.lmodel)
         self.optimizer = optimizer(self.tmodel.parameters())
         self.update_target_every = update_target_every
         self.update = 0

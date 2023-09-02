@@ -98,6 +98,6 @@ class DoubleDQNAgent(FixedTargetDQNAgent):
     def get_target_value(self, actions, states):
         target_q_table = self.tmodel(states)
         current_q_table = self.lmodel(states)
-        best_actions = current_q_table.max(1)[1].unsqueeze(0)
+        best_actions = current_q_table.max(1)[1].unsqueeze(1)
         targets = target_q_table.gather(1, best_actions)
         return targets

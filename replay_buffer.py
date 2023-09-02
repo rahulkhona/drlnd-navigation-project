@@ -74,7 +74,7 @@ class ReplayBuffer:
 
         return ((states, actions, rewards, next_states, dones), None, None)
 
-    def update_errors(errors:np.ndarray, indices:np.ndarray):
+    def update_errors(self, errors, indices):
         pass
 
 

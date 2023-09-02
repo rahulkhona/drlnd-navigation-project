@@ -12,7 +12,9 @@ from collections import deque
 import matplotlib.pyplot as plt
 
 # hyper parameters
-epsProvider = hpp.ExponentialChangeParameterProvider(0.9, 0.05, -0.1)
+#epsProvider = hpp.ExponentialChangeParameterProvider(1, 0.05, -0.001)
+num_episodes=20000
+epsProvider = hpp.LinearChangeParameterProvider(1.0, 0.1, -1/(0.75*num_episodes))
 gammaProvider = hpp.ConstantParameterProvider(0.9)
 alphaProvider = hpp.ConstantParameterProvider(0.05)
 uniformityProvider = hpp.ConstantParameterProvider(0.9)
@@ -25,11 +27,10 @@ buffer_size=2000
 batch_size=64
 seed=0x42
 update_every=4
-update_target_every=10
-max_steps=200
-num_episodes=10
-score_window_len=1000
-good_score_threshold=100
+update_target_every=150
+max_steps=2000
+score_window_len=100
+good_score_threshold=13
 
 env = UnityEnvironment(file_name="Banana.app", no_graphics=True)
 brain_name = env.brain_names[0]
@@ -46,6 +47,8 @@ scores=[]
 scores_window = deque(maxlen=score_window_len)
 saved=False
 for episode in range(1, num_episodes):
+    if (episode -1) % 100 == 0:
+        print("Starting Episode number:", episode)
     env_info = env.reset(train_mode=True)[brain_name]
     state = env_info.vector_observations[0]
     score = 0
@@ -63,8 +66,11 @@ for episode in range(1, num_episodes):
         state = next_state
     scores_window.append(score)
     scores.append(score)
+    if (episode - 1) % 100 == 0:
+        print("latest score is", score)
     if np.mean(scores_window) > good_score_threshold:
         torch.save(agent.tmode.state_dict(), "checkpoint.pth")
+        print("solved environmnet in ", episode, " episodes with avg score of ", np.mean(scores_window))
         saved = True
         break
 

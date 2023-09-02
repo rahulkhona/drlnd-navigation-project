@@ -19,7 +19,7 @@ uniformityProvider = hpp.ConstantParameterProvider(0.9)
 betaProvider = hpp.ExponentialChangeParameterProvider(0.1, 1, 0.1)
 lossFun = F.mse_loss
 optimizer = partial(optim.Adam, lr=alphaProvider.get())
-model = DQN
+model = DuelingDQN
 agent = FixedTargetDQNAgent
 buffer_size=2000
 batch_size=64
@@ -37,8 +37,9 @@ brain = env.brains[brain_name]
 env_info = env.reset(train_mode=True)[brain_name]
 state_size =  len(env_info.vector_observations[0])
 action_size = brain.vector_action_space_size
-replay_buffer = PriorityReplayBuffer(buffer_size=buffer_size, batch_size=batch_size, seed=seed, betaProvider=betaProvider, uniformity=uniformityProvider.get())
-agent = FixedTargetDQNAgent(state_size, action_size, epsProvider, gammaProvider, replay_buffer, model, optimizer, lossFun,
+#replay_buffer = PriorityReplayBuffer(buffer_size=buffer_size, batch_size=batch_size, seed=seed, betaProvider=betaProvider, uniformity=uniformityProvider.get())
+replay_buffer = ReplayBuffer(buffer_size=buffer_size, batch_size=batch_size, seed=seed)
+agent = DoubleDQNAgent(state_size, action_size, epsProvider, gammaProvider, replay_buffer, model, optimizer, lossFun,
                             update_every=update_every, update_target_every=update_target_every)
 
 scores=[]

@@ -31,12 +31,12 @@ class DQN(nn.Module):
 
 class DuelingDQN(nn.Module):
     def __init__(self, num_inputs:int, num_outputs:int):
-        super(DQN, self).__init__()
+        super(DuelingDQN, self).__init__()
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
         self.fc1 = nn.Linear(in_features = num_inputs, out_features=64)
         self.fc2 = nn.Linear(in_features = 64, out_features=128)
-        self.value = nn.Linear(in_features = 64, out_features=1)
+        self.value = nn.Linear(in_features = 128, out_features=1)
         self.advantage = nn.Linear(in_features = 128, out_features=num_outputs)
 
     def forward(self, x:torch.Tensor)->torch.Tensor:
@@ -49,4 +49,4 @@ class DuelingDQN(nn.Module):
     def copyFrom(self, model:nn.Module):
         if type(self) != type(model):
             raise ValueError(f"invalid model type {type(model)}")
-        self.load_state_dict(model.state_dict)
+        self.load_state_dict(model.state_dict())

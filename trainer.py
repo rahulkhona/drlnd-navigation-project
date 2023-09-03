@@ -76,7 +76,6 @@ class Trainer():
             hpdict['eps'] = np.random.uniform(hpdict['epsMin'], hpdict['epsMax'])
         if hpdict['betaProvider'] == hpp.ConstantParameterProvider:
             hpdict['beta'] = np.random.uniform(hpdict['betaMin'], hpdict['betaMax'])
-        print(hpdict)
         return hpdict
 
     def train(self, max_episodes : int = None, from_path:str=None)->Tuple[List[float], datetime, datetime]:
@@ -119,7 +118,6 @@ class Trainer():
         env_info = env.reset(train_mode=True)[brain_name]
         state_size =  len(env_info.vector_observations[0])
         action_size = brain.vector_action_space_size
-        print(hpdict["optimizer"], hpdict["lossFn"])
         if hpdict["agent"] == FixedTargetDQNAgent:
             agent = FixedTargetDQNAgent(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
                                         hpdict["model"], hpdict["optimizer"], hpdict["lossFn"], 

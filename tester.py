@@ -18,14 +18,32 @@ from typing import List, Tuple
 from filenames import CHECKPOINT_FILE, HYPER_PARAMETERS_FILE
 
 class Tester:
+    """Run saved models against the environment
+    """
     def __init__(self, iteration_path:str):
+        """Constructor.
+
+        Parameters:
+            iteration_path (str) : directory containing the saved files and model for interation of interst
+        """
         self.checkpoint_file = os.path.join(iteration_path, CHECKPOINT_FILE)
         self.hyper_parameters_file = os.path.join(iteration_path, HYPER_PARAMETERS_FILE)
     
     def get_hyper_parameters(self)->dict:
+        """Load hyper parameters that were saved for the iteration
+
+        Returns:
+            dictionary containing hyper parameters
+        """
         return pickle.load(open(self.hyper_parameters_file, "rb"))
 
-    def test(self, num_episodes:int=100):
+    def test(self, num_episodes:int=None):
+        """Test the model
+
+        Parameters:
+            num_episodes (int) : number of episodes to try the model with. By default it uses the same
+            number of iterations that were used for training the model
+        """
         hpdict = self.get_hyper_parameters()
         modelType = hpdict['model']
         env = UnityEnvironment(file_name="Banana.app", no_graphics=True)

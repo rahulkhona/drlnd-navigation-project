@@ -19,7 +19,18 @@ from filenames import CHECKPOINT_FILE, SCORES_FILE, HYPER_PARAMETERS_FILE, COMPL
 
 
 class Trainer():
+    """Train a model. It randomly choses hyper parameters and it is designed to driven multiple times from
+    an execution environment to try different parameters and generate different models
+    """
     def __init__(self, iteration_name : str, output_path : str, seed:int=0x21):
+        """Constructor
+
+        Parameters:
+            iteration_name (str) : Name of the iteration. All the output would be stored in the directory whose name is 
+                same as iteration name
+            output_path (str) : Top level directory where all the iterations are saved
+            seed (int) : seed to initialize random number generator with
+        """
         self.name = iteration_name
         self.output_path = output_path
 
@@ -31,6 +42,8 @@ class Trainer():
         self.seed = seed
 
     def build_hyper_paramers(self)->dict:
+        """Generate hyper parameters
+        """
         num_layers = np.random.randint(1, 4)
         epsMax = np.random.uniform(0, 1)
         num_episodes = np.random.randint(100, 200000)
@@ -77,6 +90,14 @@ class Trainer():
         return hpdict
 
     def train(self, max_episodes : int = None, from_path:str=None)->Tuple[List[float], datetime, datetime]:
+        """Train a model
+
+        Parameters:
+            max_episodes (int) : default is pick generate value, but override with this
+            from_path (str) : default is None. Use hyper parameters from pickle file saved in this parameter rather than generating
+        Returns:
+            a tuple containing list of best cores, completion time and start time
+        """
         if from_path is not None:
             hpdict = pickle.load(open(from_path, "rb"))
         else:
@@ -180,6 +201,9 @@ class Trainer():
         return (best_scores, completed, now)
 
 
+
+### main script to drive training.
+### TODO move this into a runner script
 available_time = 48*3600
 epoch = datetime.utcfromtimestamp(0)
 OUTPUT_DIR="/Users/rkhona/learn/udacity/rl/projects2/outputs/navigation_project"

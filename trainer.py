@@ -51,6 +51,7 @@ class Trainer():
         max_steps = 300
         alpha = np.random.uniform(0.0001, 0.20)
         gamma = np.random.uniform(0.5, 1)
+        tau = np.random.uniform(.001, .05)
         hpdict = {
             "num_episodes" : num_episodes,
             "max_steps" : max_steps,
@@ -68,6 +69,8 @@ class Trainer():
             "good_score_threshold" : 13,
             "alpha" : alpha,
             "gamma" : gamma,
+            "tau" : tau,
+            "useTau": np.random.choice([0, 1]),
             "uniformity" : np.random.uniform(0, 1),
             "epsMax" :  epsMax,
             "epsMin" : np.random.uniform(0, epsMax),
@@ -108,6 +111,7 @@ class Trainer():
         alphaProvider = hpp.ConstantParameterProvider(hpdict["alpha"])
         gammaProvider = hpp.ConstantParameterProvider(hpdict["gamma"])
         uniformityProvider = hpp.ConstantParameterProvider(hpdict["uniformity"])
+        tauProvider = hpp.ConstantParameterProvider(hpdict["tau"])
         if hpdict["eps"] is None:
             provider = hpdict["epsProvider"]
             epsProvider = provider(hpdict["epsMax"], hpdict["epsMin"], hpdict["epsDecay"])
@@ -142,11 +146,11 @@ class Trainer():
         if hpdict["agent"] == FixedTargetDQNAgent:
             agent = FixedTargetDQNAgent(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
                                         hpdict["model"], hpdict["optimizer"], hpdict["lossFn"], 
-                                        hpdict["update_every"], hpdict["update_target_every"], arch)
+                                        hpdict["update_every"], hpdict["update_target_every"], arch, hpdict['useTau'], hpdict['tau'])
         else:
             agent = DoubleDQNAgent(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
                                         hpdict["model"], hpdict["optimizer"], hpdict["lossFn"], 
-                                        hpdict["update_every"], hpdict["update_target_every"], arch)
+                                        hpdict["update_every"], hpdict["update_target_every"], arch, hpdict['useTau'], hpdict['tau'])
         
         scores = []
         best_scores =  None
@@ -181,7 +185,7 @@ class Trainer():
                 torch.save(agent.lmodel.state_dict(), os.path.join(self.my_path, CHECKPOINT_FILE))
                 last_best_score = score
                 best_scores = scores_window.copy()
-                pickle.dump(scores, open(os.path.join(self.my_path, SCORES_FILE), "wb"))
+                pickle.dump(best_scores, open(os.path.join(self.my_path, SCORES_FILE), "wb"))
                 if current_score > hpdict["good_score_threshold"]:
                     print("solved environmnet in ", episode, " episodes with avg score of ", np.mean(scores_window))
                     break
@@ -204,15 +208,15 @@ class Trainer():
 
 ### main script to drive training.
 ### TODO move this into a runner script
-available_time = 48*3600
-epoch = datetime.utcfromtimestamp(0)
-OUTPUT_DIR="/Users/rkhona/learn/udacity/rl/projects2/outputs/navigation_project"
+#available_time = 48*3600
+#epoch = datetime.utcfromtimestamp(0)
+#OUTPUT_DIR="/Users/rkhona/learn/udacity/rl/projects2/outputs/navigation_project"
 
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
-while available_time > 0:
-    i = (datetime.now() - epoch).total_seconds()
-    trainer = Trainer(f"iter-{i}", OUTPUT_DIR, seed=i)
-    scores, completed, start = trainer.train()
-    print("Competed iteration in ", (completed - start).total_seconds()/3600, " hours")
-    available_time -= (completed - start).total_seconds()
+#if not os.path.exists(OUTPUT_DIR):
+#    os.makedirs(OUTPUT_DIR)
+#while available_time > 0:
+#    i = (datetime.now() - epoch).total_seconds()
+#    trainer = Trainer(f"iter-{i}", OUTPUT_DIR, seed=i)
+#    scores, completed, start = trainer.train()
+#    print("Competed iteration in ", (completed - start).total_seconds()/3600, " hours")
+#    available_time -= (completed - start).total_seconds()

@@ -16,7 +16,8 @@ class FixedTargetDQNAgent:
     """FixedTarget DQN agent"""
     def __init__(self, state_size:int, action_size:int,epsProvider:HyperParameterProvider,gammaProvider:HyperParameterProvider,
                 replayBuffer:ReplayBuffer, model:DQNBase, optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
-                update_target_every:int=DEFAULT_TARGET_UPDATE, arch:List[Union[int, Tuple[str, int]]]=[128,64]):
+                update_target_every:int=DEFAULT_TARGET_UPDATE, arch:List[Union[int, Tuple[str, int]]]=[128,64],
+                useTau:int=0, tau:float=0.001):
         """Constructor
 
         Parameters:
@@ -49,6 +50,8 @@ class FixedTargetDQNAgent:
         self.tmodel = model(state_size, action_size, arch).to(self.device)
         self.optimizer = optimizer(self.tmodel.parameters())
         self.update_target_every = update_target_every
+        self.useTau = useTau,
+        self.tau = tau
         self.update = 0
 
     def is_priority_replay(self):
@@ -93,7 +96,9 @@ class FixedTargetDQNAgent:
         self.optimizer.step()
         self.replayBuffer.update_errors(errors.cpu().numpy(), indices)
         self.update += 1
-        if self.update % self.update_target_every == 0:
+        if self.useTau:
+            self.tmodel.updateFrom(self.lmodel, self.tau)
+        elif self.update % self.update_target_every == 0:
             # This is hard update, we can also use a moving every update every
             # learning step and update target model with small fraction of local model
             self.tmodel.copyFrom(self.lmodel)
@@ -117,14 +122,14 @@ class DoubleDQNAgent(FixedTargetDQNAgent):
     """DoubleDQN Agent implementation"""
     def __init__(self, state_size:int, action_size:int,epsProvider:HyperParameterProvider,gammaProvider:HyperParameterProvider,
                 replayBuffer:ReplayBuffer, model:DQNBase, optimizer:optim.Optimizer, lossFn, update_every:int=DEFAULT_UPDATE_EVERY,
-                update_target_every:int=DEFAULT_TARGET_UPDATE, arch:List[Union[int, Tuple[str, int]]]=[128, 64]):
+                update_target_every:int=DEFAULT_TARGET_UPDATE, arch:List[Union[int, Tuple[str, int]]]=[128, 64], useTau:int=0,tau:float=0.001):
         """Constructor
 
         Paramters:
             ssee FixedTargetDQNAgent, we use same parameters
         """
         super(DoubleDQNAgent, self).__init__(state_size, action_size, epsProvider, gammaProvider, replayBuffer, model, optimizer, lossFn, update_every,
-                                             update_target_every, arch)
+                                             update_target_every, arch, useTau, tau)
 
     def get_target_value(self, actions, states):
         """Get the target value given a next state, used for computing TD error"""

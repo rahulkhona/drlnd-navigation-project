@@ -31,6 +31,11 @@ class DQNBase(nn.Module):
             raise ValueError(f"invalid model type {type(model)}")
         self.load_state_dict(model.state_dict())
 
+    def updateFrom(self, model:nn.Module, tau:float=0.001):
+        with torch.no_grad():
+            for my_param, source_param in zip(self.parameters(), model.parameters()):
+                my_param.copy_(tau*source_param.data + (1.0-tau)*my_param.data)
+
 
 class DQN(DQNBase):
     """Deep Q network model"""

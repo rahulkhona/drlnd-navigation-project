@@ -12,10 +12,9 @@ from collections import deque, OrderedDict
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
-import random
-import pickle
-from typing import List, Tuple
+import json
 from filenames import CHECKPOINT_FILE, HYPER_PARAMETERS_FILE
+from string_to_function_mappers import model_mapper
 
 class Tester:
     """Run saved models against the environment
@@ -35,7 +34,7 @@ class Tester:
         Returns:
             dictionary containing hyper parameters
         """
-        return pickle.load(open(self.hyper_parameters_file, "rb"))
+        return json.load(open(self.hyper_parameters_file, "r"))
 
     def test(self, num_episodes:int=None):
         """Test the model
@@ -45,12 +44,12 @@ class Tester:
             number of iterations that were used for training the model
         """
         hpdict = self.get_hyper_parameters()
-        modelType = hpdict['model']
+        modelType = model_mapper[hpdict['model']]
         env = UnityEnvironment(file_name="Banana.app", no_graphics=True)
         brain_name = env.brain_names[0]
         brain = env.brains[brain_name]
         env_info = env.reset(train_mode=False)[brain_name]
-        model=model(hpdict['state_size'], hpdict['action_size']).to("cpu")
+        model=modelType(hpdict['state_size'], hpdict['action_size']).to("cpu")
         if scores_window_len is None:
             scores_window_len = hpdict['scores_window_len']
         if num_episodes is None:

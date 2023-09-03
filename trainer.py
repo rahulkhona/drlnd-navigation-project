@@ -13,9 +13,12 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 import random
-import pickle
+import json
 from typing import List, Tuple
 from filenames import CHECKPOINT_FILE, SCORES_FILE, HYPER_PARAMETERS_FILE, COMPLETION_TIME_FILE, SCORES_IMAGE
+from string_to_function_mappers import hpp_mapper, loss_fn_mapper, optim_mapper, replay_buffer_mapper, agent_mapper, model_mapper
+from hyper_parameter_providers import ConstantParameterProvider, LinearChangeParameterProvider, ExponentialChangeParameterProvider
+from numpyencoder import NumpyEncoder
 
 
 class Trainer():
@@ -56,11 +59,11 @@ class Trainer():
             "num_episodes" : num_episodes,
             "max_steps" : max_steps,
             "num_layers" : num_layers,
-            "layer_sizes" : np.random.randint(10, 2048, size=num_layers),
-            "layer_types" : np.random.choice(["NL", "L"], size=num_layers),
-            "model" : np.random.choice([DQN2, DuelingDQN2]),
-            "replay_buffer" : np.random.choice([ReplayBuffer, PriorityReplayBuffer]),
-            "agent" : np.random.choice([FixedTargetDQNAgent, DoubleDQNAgent]),
+            "layer_sizes" : np.random.randint(10, 2048, size=num_layers).tolist(),
+            "layer_types" : np.random.choice(["NL", "L"], size=num_layers).tolist(),
+            "model" : np.random.choice([DQN2.__name__, DuelingDQN2.__name__]).tolist(),
+            "replay_buffer" : np.random.choice([ReplayBuffer.__name__, PriorityReplayBuffer.__name__]).tolist(),
+            "agent" : np.random.choice([FixedTargetDQNAgent.__name__, DoubleDQNAgent.__name__]).tolist(),
             "buffer_size" : np.random.randint(1000, 4000),
             "batch_size" : np.random.randint(16, 256),
             "update_every" : np.random.randint(2, 10),
@@ -75,50 +78,64 @@ class Trainer():
             "epsMax" :  epsMax,
             "epsMin" : np.random.uniform(0, epsMax),
             "epsDecay" : -1 / (np.random.uniform(0.01, 1) * num_episodes),
-            "epsProvider" : np.random.choice([hpp.ExponentialChangeParameterProvider, hpp.LinearChangeParameterProvider, hpp.ConstantParameterProvider]),
+            "epsProvider" : np.random.choice([ExponentialChangeParameterProvider.__name__,
+                                              LinearChangeParameterProvider.__name__,
+                                              ConstantParameterProvider.__name__]).tolist(),
             "eps" : None,
             "betaMin" : betaMin,
             "betaMax" : 1,
             "betaGrowth" : 1 / (np.random.uniform(0.1, 1) * num_episodes * max_steps),
-            "betaProvider": np.random.choice([hpp.LinearChangeParameterProvider, hpp.ExponentialChangeParameterProvider, hpp.ConstantParameterProvider]),
+            "betaProvider": np.random.choice([LinearChangeParameterProvider.__name__,
+                                              ExponentialChangeParameterProvider.__name__,
+                                              ConstantParameterProvider.__name__]).tolist(),
             "beta" : None,
-            "lossFn" : np.random.choice([F.mse_loss, F.l1_loss, F.smooth_l1_loss]),
-            "optimizer" : np.random.choice([partial(optim.Adam,lr=alpha), partial(optim.RMSprop,lr=alpha)])
+            "lossFn" : np.random.choice([F.mse_loss.__name__, F.l1_loss.__name__, F.smooth_l1_loss.__name__]).tolist(),
+            "optimizer" : np.random.choice([optim.Adam.__name__, optim.RMSprop.__name__]).tolist()
         }
 
-        if hpdict['epsProvider'] == hpp.ConstantParameterProvider :
+        if hpdict['epsProvider'] == 'ConstantParameterProvider':
             hpdict['eps'] = np.random.uniform(hpdict['epsMin'], hpdict['epsMax'])
-        if hpdict['betaProvider'] == hpp.ConstantParameterProvider:
+        if hpdict['betaProvider'] == 'ConstantParameterProvider':
             hpdict['beta'] = np.random.uniform(hpdict['betaMin'], hpdict['betaMax'])
         return hpdict
 
-    def train(self, num_episodes : int = None, from_path:str=None, avail_time:int=None)->Tuple[List[float], datetime, datetime]:
+    def load_json(self, path:str):
+        with open(path, "r") as jsonFile:
+            return json.load(jsonFile)
+
+    def save_json(self, arg, path:str):
+        with open(path, "w") as jsonFile:
+            json.dump(arg, jsonFile, cls=NumpyEncoder)
+
+    def train(self, num_episodes : int = None, from_path:str=None, avail_time:int=None, max_steps:int=None)->Tuple[List[float], datetime, datetime]:
         """Train a model
 
         Parameters:
             max_episodes (int) : default is pick generate value, but override with this
-            from_path (str) : default is None. Use hyper parameters from pickle file saved in this parameter rather than generating
+            from_path (str) : default is None. Use hyper parameters from json file saved in this parameter rather than generating
         Returns:
             a tuple containing list of best cores, completion time and start time
         """
         if from_path is not None:
-            hpdict = pickle.load(open(from_path, "rb"))
+                hpdict = self.load_json(from_path)
         else:
             hpdict = self.build_hyper_paramers()
         if num_episodes is not None:
             hpdict["num_episodes"] = num_episodes
+        if max_steps is not None:
+            hpdict['max_steps'] = max_steps
         hpdict["seed"] = self.seed
         alphaProvider = hpp.ConstantParameterProvider(hpdict["alpha"])
         gammaProvider = hpp.ConstantParameterProvider(hpdict["gamma"])
         uniformityProvider = hpp.ConstantParameterProvider(hpdict["uniformity"])
         tauProvider = hpp.ConstantParameterProvider(hpdict["tau"])
         if hpdict["eps"] is None:
-            provider = hpdict["epsProvider"]
+            provider = hpp_mapper[hpdict["epsProvider"]]
             epsProvider = provider(hpdict["epsMax"], hpdict["epsMin"], hpdict["epsDecay"])
         else:
             epsProvider = hpp.ConstantParameterProvider(hpdict["eps"])
         if hpdict["beta"] is None:
-            provider = hpdict["betaProvider"]
+            provider = hpp_mapper[hpdict["betaProvider"]]
             betaProvider = provider(hpdict["betaMin"], hpdict["betaMax"], hpdict["betaGrowth"])
         else:
             betaProvider = hpp.ConstantParameterProvider(hpdict["beta"])
@@ -127,7 +144,7 @@ class Trainer():
             arch.append((hpdict["layer_types"][i], hpdict["layer_sizes"][i]))
             if i < hpdict["num_layers"] - 1:
                 arch.append(("R", hpdict["layer_sizes"][i]))
-        if hpdict["replay_buffer"] == PriorityReplayBuffer:
+        if hpdict["replay_buffer"] == PriorityReplayBuffer.__name__:
             replayBuffer = PriorityReplayBuffer(buffer_size=hpdict["buffer_size"], batch_size=hpdict["batch_size"],
                                                 seed=hpdict["seed"], betaProvider=betaProvider, uniformity=uniformityProvider.get())
         else:
@@ -142,21 +159,18 @@ class Trainer():
         hpdict['state_size'] = state_size
         hpdict['action_size'] = action_size
         hyper_param_file = os.path.join(self.my_path, HYPER_PARAMETERS_FILE)
-        pickle.dump(hpdict, open(hyper_param_file, "wb"))
-        if hpdict["agent"] == FixedTargetDQNAgent:
-            agent = FixedTargetDQNAgent(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
-                                        hpdict["model"], hpdict["optimizer"], hpdict["lossFn"], 
-                                        hpdict["update_every"], hpdict["update_target_every"], arch, hpdict['useTau'], hpdict['tau'])
-        else:
-            agent = DoubleDQNAgent(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
-                                        hpdict["model"], hpdict["optimizer"], hpdict["lossFn"], 
-                                        hpdict["update_every"], hpdict["update_target_every"], arch, hpdict['useTau'], hpdict['tau'])
+        self.save_json(hpdict, hyper_param_file)
+        optimizer = partial(optim_mapper[hpdict["optimizer"]], lr=hpdict['alpha'])
+        agentClass = agent_mapper[hpdict['agent']]
+        agent = agentClass(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
+                           model_mapper[hpdict["model"]], optimizer, loss_fn_mapper[hpdict["lossFn"]], 
+                           hpdict["update_every"], hpdict["update_target_every"], arch, hpdict['useTau'], hpdict['tau'])
         
         scores = []
         best_scores =  None
         scores_window = deque(maxlen=hpdict["scores_window_len"])
         last_best_score = -np.inf
-        now = datetime.now()
+        started = datetime.now()
         for episode in range(hpdict["num_episodes"]):
             if (episode -1) % 100 == 0:
                 print("Starting Episode number:", episode)
@@ -187,14 +201,14 @@ class Trainer():
                 best_scores = scores_window.copy()
                 print("New best score ", current_score)
                 scores_dict = {
-                    "best_scores" : best_scores,
+                    "best_scores" : list(best_scores),
                     "scores_till_now" : scores
                 }
-                pickle.dump(scores_dict, open(os.path.join(self.my_path, SCORES_FILE), "wb"))
+                self.save_json(scores_dict, os.path.join(self.my_path, SCORES_FILE))
                 if current_score > hpdict["good_score_threshold"]:
                     print("solved environmnet in ", episode, " episodes with avg score of ", np.mean(scores_window))
                     break
-            if avail_time is not None and (datetime.now() - now).total_seconds() > avail_time:
+            if avail_time is not None and (datetime.now() - started).total_seconds() > avail_time:
                 break
         completed = datetime.now()
         fig = plt.figure()
@@ -205,13 +219,10 @@ class Trainer():
         plt.show()
         plt.savefig(os.path.join(self.my_path, SCORES_IMAGE))
         completion_dict = {
-            "completed" : completed,
-            "started" : now
+            "time_taken" : (completed - started).total_seconds(),
         }
-        pickle.dump(completion_dict, open(os.path.join(self.my_path, COMPLETION_TIME_FILE)))
-        return (best_scores, completed, now)
-
-
+        self.save_json(completion_dict, os.path.join(self.my_path, COMPLETION_TIME_FILE))
+        return (best_scores, completed, started)
 
 ### main script to drive training.
 ### TODO move this into a runner script

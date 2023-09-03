@@ -6,12 +6,18 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-
-
+from typing import Tuple, List
 
 ### main script to drive training.
 
-def find_best_model(outputdir:str):
+def find_best_model(outputdir:str)->Tuple[str, List[float], float, List[float]]:
+    """Go through output dir and find the best model and its hyper parameters 
+
+    Returns:
+        Tuple containing path to best model, its best 100 consecutive scores, mean of best scores, all scores till
+        the capture of the output
+
+    """
     entries = os.listdir(outputdir)
     best = -np.inf
     best_scores = None
@@ -37,6 +43,16 @@ def find_best_model(outputdir:str):
 
 
 def train(outputdir, max_training_hours=48, max_episodes:int=-1, max_steps:int=None):
+    """ Training loop that generates different models and hyper parameters and trains
+    them
+
+    Parameters:
+        outputir (str) : path were outputs should write model and hyper paramaters
+        max_training_hours (int) : maximum hours the training loop should be allowed default 48 hrs
+        max_episodes  (int) : Maximum number of episodes to run, default is random choice
+        max_steps  (int) : Maximum number of steps per episodes to run, default is defined by trainer script
+
+    """
     available_time = max_training_hours*3600
     epoch = datetime.utcfromtimestamp(0)
     OUTPUT_DIR="/Users/rkhona/learn/udacity/rl/projects2/outputs/navigation_project"
@@ -46,12 +62,9 @@ def train(outputdir, max_training_hours=48, max_episodes:int=-1, max_steps:int=N
     while available_time > 0:
         i = (datetime.now() - epoch).total_seconds()
         trainer = Trainer(f"iter-{i}", OUTPUT_DIR, seed=i)
-        scores, completed, start = trainer.train(num_episodes=max_episodes, avail_time=available_time, max_steps=None)
+        scores, completed, start = trainer.train(num_episodes=max_episodes, avail_time=available_time, max_steps=max_steps)
         print("Competed iteration in ", (completed - start).total_seconds()/3600, " hours")
         available_time -= (completed - start).total_seconds()
-
-def test_args(dir, train):
-    print(dir, train)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train and find the best model")
@@ -76,4 +89,3 @@ if __name__ == '__main__':
     plt.ylabel("Score")
     plt.xlabel("Episode #")
     plt.show()
-

@@ -7,7 +7,6 @@ import random
 import numpy as np
 import hyper_parameter_providers as hpp
 
-
 Experience = namedtuple('Experience', field_names=['state', 'action', 'reward', 'next_state', 'done'])
 rb_logger = logging.getLogger("ReplayBufferLogger")
 DEFAULT_BUFFER_SIZE=1000

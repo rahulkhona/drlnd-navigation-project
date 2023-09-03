@@ -2,20 +2,20 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import hyper_parameter_providers as hpp
-from models import DQN, DuelingDQN, DuelingDQN2, DQN2
+from models import DuelingDQN2, DQN2
 from agents import FixedTargetDQNAgent, DoubleDQNAgent
 from replay_buffer import ReplayBuffer, PriorityReplayBuffer
 from functools import partial
 from unityagents import UnityEnvironment
 import numpy as np
-from collections import deque, OrderedDict
+from collections import deque
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 import random
 import pickle
-import typing
 from typing import List, Tuple
+from filenames import CHECKPOINT_FILE, SCORES_FILE, HYPER_PARAMETERS_FILE, COMPLETION_TIME_FILE, SCORES_IMAGE
 
 
 class Trainer():
@@ -38,8 +38,6 @@ class Trainer():
         max_steps = 300
         alpha = np.random.uniform(0.0001, 0.20)
         gamma = np.random.uniform(0.5, 1)
-        buffer_size = np.random.randint(200, 2000)
-        batch_size = np.random.randint(16, 128)
         hpdict = {
             "num_episodes" : num_episodes,
             "max_steps" : max_steps,
@@ -86,8 +84,6 @@ class Trainer():
         if max_episodes is not None:
             hpdict["max_episodes"] = max_episodes
         hpdict["seed"] = self.seed
-        hyper_param_file = os.path.join(self.my_path, "hyper_parameters.pickle")
-        pickle.dump(hpdict, open(hyper_param_file, "wb"))
         alphaProvider = hpp.ConstantParameterProvider(hpdict["alpha"])
         gammaProvider = hpp.ConstantParameterProvider(hpdict["gamma"])
         uniformityProvider = hpp.ConstantParameterProvider(hpdict["uniformity"])
@@ -118,6 +114,10 @@ class Trainer():
         env_info = env.reset(train_mode=True)[brain_name]
         state_size =  len(env_info.vector_observations[0])
         action_size = brain.vector_action_space_size
+        hpdict['state_size'] = state_size
+        hpdict['action_size'] = action_size
+        hyper_param_file = os.path.join(self.my_path, HYPER_PARAMETERS_FILE)
+        pickle.dump(hpdict, open(hyper_param_file, "wb"))
         if hpdict["agent"] == FixedTargetDQNAgent:
             agent = FixedTargetDQNAgent(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
                                         hpdict["model"], hpdict["optimizer"], hpdict["lossFn"], 
@@ -157,10 +157,10 @@ class Trainer():
                 print("latest score is", score)
             current_score = np.mean(scores_window)
             if current_score > last_best_score:
-                torch.save(agent.tmodel.state_dict(), os.path.join(self.my_path,"checkpoint.pth"))
+                torch.save(agent.lmodel.state_dict(), os.path.join(self.my_path, CHECKPOINT_FILE))
                 last_best_score = score
                 best_scores = scores_window.copy()
-                pickle.dump(scores, open(os.path.join(self.my_path, "best_scores.pickle"), "wb"))
+                pickle.dump(scores, open(os.path.join(self.my_path, SCORES_FILE), "wb"))
                 if current_score > hpdict["good_score_threshold"]:
                     print("solved environmnet in ", episode, " episodes with avg score of ", np.mean(scores_window))
                     break
@@ -171,12 +171,12 @@ class Trainer():
         plt.ylabel("Score")
         plt.xlabel("Episode #")
         plt.show()
-        plt.savefig(os.path.join(self.my_path, "best_scores_plot.jpg"))
+        plt.savefig(os.path.join(self.my_path, SCORES_IMAGE))
         completion_dict = {
             "completed" : completed,
             "started" : now
         }
-        pickle.dump(completion_dict, open(os.path.join(self.my_path, "completion_dict.pickle")))
+        pickle.dump(completion_dict, open(os.path.join(self.my_path, COMPLETION_TIME_FILE)))
         return (best_scores, completed, now)
 
 

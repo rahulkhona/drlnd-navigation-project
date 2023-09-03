@@ -92,7 +92,7 @@ class Trainer():
             hpdict['beta'] = np.random.uniform(hpdict['betaMin'], hpdict['betaMax'])
         return hpdict
 
-    def train(self, max_episodes : int = None, from_path:str=None)->Tuple[List[float], datetime, datetime]:
+    def train(self, num_episodes : int = None, from_path:str=None, avail_time:int=None)->Tuple[List[float], datetime, datetime]:
         """Train a model
 
         Parameters:
@@ -105,8 +105,8 @@ class Trainer():
             hpdict = pickle.load(open(from_path, "rb"))
         else:
             hpdict = self.build_hyper_paramers()
-        if max_episodes is not None:
-            hpdict["max_episodes"] = max_episodes
+        if num_episodes is not None:
+            hpdict["num_episodes"] = num_episodes
         hpdict["seed"] = self.seed
         alphaProvider = hpp.ConstantParameterProvider(hpdict["alpha"])
         gammaProvider = hpp.ConstantParameterProvider(hpdict["gamma"])
@@ -185,10 +185,17 @@ class Trainer():
                 torch.save(agent.lmodel.state_dict(), os.path.join(self.my_path, CHECKPOINT_FILE))
                 last_best_score = score
                 best_scores = scores_window.copy()
-                pickle.dump(best_scores, open(os.path.join(self.my_path, SCORES_FILE), "wb"))
+                print("New best score ", current_score)
+                scores_dict = {
+                    "best_scores" : best_scores,
+                    "scores_till_now" : scores
+                }
+                pickle.dump(scores_dict, open(os.path.join(self.my_path, SCORES_FILE), "wb"))
                 if current_score > hpdict["good_score_threshold"]:
                     print("solved environmnet in ", episode, " episodes with avg score of ", np.mean(scores_window))
                     break
+            if avail_time is not None and (datetime.now() - now).total_seconds() > avail_time:
+                break
         completed = datetime.now()
         fig = plt.figure()
         ax = fig.add_subplot(111)

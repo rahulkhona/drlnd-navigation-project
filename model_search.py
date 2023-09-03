@@ -25,9 +25,10 @@ def find_best_model(outputdir:str):
             continue
         print(" checking ", scores_path)
         scores_dict = json.load(open(scores_path, "r"))
-        best_scores = scores_dict['best_scores']
+        scores = scores_dict['best_scores']
+        print(scores)
         all_scores = scores_dict['scores_till_now']
-        mean_score = np.mean(best_scores)
+        mean_score = np.mean(scores)
         if mean_score > best:
             best = mean_score
             best_scores = scores
@@ -67,11 +68,11 @@ if __name__ == '__main__':
     max_steps = args.max_steps
     if do_train:
         train(outputdir, hours, max_episodes, max_steps)
-    path, scores, best = find_best_model(outputdir)
-    print("best model path", path, " best mean score", best, "best scores ", scores)
+    path, best_scores, best, all_scores = find_best_model(outputdir)
+    print("best model path", path, " best mean score", best, "best scores ", best_scores)
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    plt.plot(np.arange(len(scores)), scores)
+    plt.plot(np.arange(len(all_scores)), all_scores)
     plt.ylabel("Score")
     plt.xlabel("Episode #")
     plt.show()

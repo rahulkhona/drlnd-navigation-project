@@ -68,7 +68,7 @@ class Trainer():
             "batch_size" : np.random.randint(16, 256),
             "update_every" : np.random.randint(2, 10),
             "update_target_every" : np.random.randint(10, 200),
-            "scores_window_len" : 300,
+            "scores_window_len" : 100,
             "good_score_threshold" : 13,
             "alpha" : alpha,
             "gamma" : gamma,
@@ -97,6 +97,7 @@ class Trainer():
             hpdict['eps'] = np.random.uniform(hpdict['epsMin'], hpdict['epsMax'])
         if hpdict['betaProvider'] == 'ConstantParameterProvider':
             hpdict['beta'] = np.random.uniform(hpdict['betaMin'], hpdict['betaMax'])
+        print(hpdict)
         return hpdict
 
     def load_json(self, path:str):
@@ -171,8 +172,8 @@ class Trainer():
         scores_window = deque(maxlen=hpdict["scores_window_len"])
         last_best_score = -np.inf
         started = datetime.now()
-        for episode in range(hpdict["num_episodes"]):
-            if (episode -1) % 100 == 0:
+        for episode in range(1, hpdict["num_episodes"] + 1):
+            if (episode - 1) % 100 == 0:
                 print("Starting Episode number:", episode)
             env_info = env.reset(train_mode=True)[brain_name]
             state = env_info.vector_observations[0]
@@ -195,7 +196,7 @@ class Trainer():
             if (episode - 1) % 100 == 0:
                 print("latest score is", score)
             current_score = np.mean(scores_window)
-            if current_score > last_best_score:
+            if len(scores_window) >= hpdict['scores_window_len'] and current_score > last_best_score:
                 torch.save(agent.lmodel.state_dict(), os.path.join(self.my_path, CHECKPOINT_FILE))
                 last_best_score = score
                 best_scores = scores_window.copy()
@@ -216,25 +217,10 @@ class Trainer():
         plt.plot(np.arange(len(best_scores)), best_scores)
         plt.ylabel("Score")
         plt.xlabel("Episode #")
-        plt.show()
+        #plt.show()
         plt.savefig(os.path.join(self.my_path, SCORES_IMAGE))
         completion_dict = {
             "time_taken" : (completed - started).total_seconds(),
         }
         self.save_json(completion_dict, os.path.join(self.my_path, COMPLETION_TIME_FILE))
         return (best_scores, completed, started)
-
-### main script to drive training.
-### TODO move this into a runner script
-#available_time = 48*3600
-#epoch = datetime.utcfromtimestamp(0)
-#OUTPUT_DIR="/Users/rkhona/learn/udacity/rl/projects2/outputs/navigation_project"
-
-#if not os.path.exists(OUTPUT_DIR):
-#    os.makedirs(OUTPUT_DIR)
-#while available_time > 0:
-#    i = (datetime.now() - epoch).total_seconds()
-#    trainer = Trainer(f"iter-{i}", OUTPUT_DIR, seed=i)
-#    scores, completed, start = trainer.train()
-#    print("Competed iteration in ", (completed - start).total_seconds()/3600, " hours")
-#    available_time -= (completed - start).total_seconds()

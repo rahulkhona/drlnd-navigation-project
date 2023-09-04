@@ -7,6 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 from typing import Tuple, List
+import time
+import multiprocessing as mp
+from unityagents import UnityEnvironment
 
 ### main script to drive training.
 
@@ -32,7 +35,7 @@ def find_best_model(outputdir:str)->Tuple[str, List[float], float, List[float]]:
         print(" checking ", scores_path)
         scores_dict = json.load(open(scores_path, "r"))
         scores = scores_dict['best_scores']
-        print(scores)
+        #print(scores)
         all_scores = scores_dict['scores_till_now']
         mean_score = np.mean(scores)
         if mean_score > best:
@@ -42,7 +45,8 @@ def find_best_model(outputdir:str)->Tuple[str, List[float], float, List[float]]:
     return best_path, best_scores, best, all_scores
 
 
-def train(outputdir, max_training_hours=48, max_episodes:int=-1, max_steps:int=None):
+
+def train(outputdir:str=None, max_training_hours=48, max_episodes:int=-1, max_steps:int=None):
     """ Training loop that generates different models and hyper parameters and trains
     them
 
@@ -53,18 +57,25 @@ def train(outputdir, max_training_hours=48, max_episodes:int=-1, max_steps:int=N
         max_steps  (int) : Maximum number of steps per episodes to run, default is defined by trainer script
 
     """
+    env = UnityEnvironment(file_name="Banana.app", no_graphics=True)
+    brain_name = env.brain_names[0]
+    brain = env.brains[brain_name]
+    env_info = env.reset(train_mode=True)[brain_name]
+    state_size =  len(env_info.vector_observations[0])
+    action_size = brain.vector_action_space_size
     available_time = max_training_hours*3600
     epoch = datetime.utcfromtimestamp(0)
-    OUTPUT_DIR="/Users/rkhona/learn/udacity/rl/projects2/outputs/navigation_project"
+    OUTPUT_DIR=outputdir if outputdir is not None else "/Users/rkhona/learn/udacity/rl/projects2/outputs/navigation_project"
 
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
     while available_time > 0:
         i = (datetime.now() - epoch).total_seconds()
+        i = int(i)
         trainer = Trainer(f"iter-{i}", OUTPUT_DIR, seed=i)
-        scores, completed, start = trainer.train(num_episodes=max_episodes, avail_time=available_time, max_steps=max_steps)
-        print("Competed iteration in ", (completed - start).total_seconds()/3600, " hours")
-        available_time -= (completed - start).total_seconds()
+        scores, completed, started = trainer.train(env, brain_name, state_size, action_size, num_episodes=max_episodes, avail_time=available_time, max_steps=max_steps)
+        print("Competed iteration in ", (completed - started).total_seconds()/3600, " hours")
+        available_time -= (completed - started).total_seconds()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train and find the best model")

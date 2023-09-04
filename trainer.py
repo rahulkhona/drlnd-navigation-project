@@ -15,7 +15,7 @@ import os
 import random
 import json
 from typing import List, Tuple
-from filenames import CHECKPOINT_FILE, SCORES_FILE, HYPER_PARAMETERS_FILE, COMPLETION_TIME_FILE, SCORES_IMAGE
+from filenames import CHECKPOINT_FILE, SCORES_FILE, HYPER_PARAMETERS_FILE, COMPLETION_TIME_FILE, SCORES_IMAGE, ALL_SCORES_FILE
 from string_to_function_mappers import hpp_mapper, loss_fn_mapper, optim_mapper, replay_buffer_mapper, agent_mapper, model_mapper
 from hyper_parameter_providers import ConstantParameterProvider, LinearChangeParameterProvider, ExponentialChangeParameterProvider
 from numpyencoder import NumpyEncoder
@@ -49,7 +49,7 @@ class Trainer():
         """
         num_layers = np.random.randint(1, 4)
         epsMax = np.random.uniform(0, 1)
-        num_episodes = np.random.randint(100, 200000)
+        num_episodes = np.random.randint(2000, 4000)
         betaMin=np.random.uniform(0.0001, 0.5)
         max_steps = 300
         alpha = np.random.uniform(0.0001, 0.20)
@@ -108,17 +108,26 @@ class Trainer():
         with open(path, "w") as jsonFile:
             json.dump(arg, jsonFile, cls=NumpyEncoder)
 
-    def train(self, num_episodes : int = None, from_path:str=None, avail_time:int=None, max_steps:int=None)->Tuple[List[float], datetime, datetime]:
+    def train(self, env, brain_name, state_size, action_size, num_episodes : int = None,
+              from_path:str=None, avail_time:int=None, max_steps:int=None, hyp_params:dict=None)->Tuple[List[float], datetime, datetime]:
         """Train a model
 
+        Note: Env details are passed in from the caller as env environment cannot be recreated after it is closed.
+
         Parameters:
+            env : UnityEnvironment env
+            brain_name : brain name returned by unity env
+            state_size (int) : state _size returned by env reset that the caller used to determine our state size
+            action_size (int) : state _size returned by env reset that the caller used to determine our action size
             max_episodes (int) : default is pick generate value, but override with this
             from_path (str) : default is None. Use hyper parameters from json file saved in this parameter rather than generating
         Returns:
             a tuple containing list of best cores, completion time and start time
         """
-        if from_path is not None:
-                hpdict = self.load_json(from_path)
+        if hyp_params is not None:
+            hpdict = hyp_params
+        elif from_path is not None:
+            hpdict = self.load_json(from_path)
         else:
             hpdict = self.build_hyper_paramers()
         if num_episodes is not None:
@@ -151,12 +160,6 @@ class Trainer():
         else:
             replayBuffer = ReplayBuffer(buffer_size=hpdict["buffer_size"], batch_size=hpdict["batch_size"], seed=hpdict["seed"])
 
-        env = UnityEnvironment(file_name="Banana.app", no_graphics=True)
-        brain_name = env.brain_names[0]
-        brain = env.brains[brain_name]
-        env_info = env.reset(train_mode=True)[brain_name]
-        state_size =  len(env_info.vector_observations[0])
-        action_size = brain.vector_action_space_size
         hpdict['state_size'] = state_size
         hpdict['action_size'] = action_size
         hyper_param_file = os.path.join(self.my_path, HYPER_PARAMETERS_FILE)
@@ -212,6 +215,7 @@ class Trainer():
             if avail_time is not None and (datetime.now() - started).total_seconds() > avail_time:
                 break
         completed = datetime.now()
+        self.save_json(scores, os.path.join(self.my_path, ALL_SCORES_FILE))
         fig = plt.figure()
         ax = fig.add_subplot(111)
         plt.plot(np.arange(len(best_scores)), best_scores)

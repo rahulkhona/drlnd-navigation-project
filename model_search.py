@@ -1,6 +1,6 @@
 from trainer import Trainer
 from datetime import datetime
-from filenames import HYPER_PARAMETERS_FILE, CHECKPOINT_FILE, SCORES_FILE
+from filenames import HYPER_PARAMETERS_FILE, CHECKPOINT_FILE, SCORES_FILE, ALL_SCORES_FILE
 import os
 import argparse
 import numpy as np
@@ -12,6 +12,30 @@ import multiprocessing as mp
 from unityagents import UnityEnvironment
 
 ### main script to drive training.
+
+def sort_models_by_performance(outputdir:str)->Tuple[List[str], List[float]]:
+    entries = os.listdir(outputdir)
+    avg_scores = []
+    paths = []
+    for entry in entries:
+        path = os.path.join(outputdir, entry)
+        if not os.path.isdir(path):
+            continue
+        scores_path = os.path.join(path, SCORES_FILE)
+        if not os.path.isfile(scores_path):
+            continue
+        scores_dict = json.load(open(scores_path, "r"))
+        scores = scores_dict['best_scores']
+        all_scores = scores_dict['scores_till_now']
+        mean_score = np.mean(scores)
+        avg_scores.append(mean_score)
+        paths.append(path)
+    
+    indices = np.argsort(np.array(avg_scores))
+    sorted_scores = np.array(avg_scores)[indices]
+    sorted_paths = np.array(paths)[indices]
+    return (sorted_paths[::-1], sorted_scores[::-1])
+
 
 def find_best_model(outputdir:str)->Tuple[str, List[float], float, List[float]]:
     """Go through output dir and find the best model and its hyper parameters 
@@ -44,6 +68,15 @@ def find_best_model(outputdir:str)->Tuple[str, List[float], float, List[float]]:
             best_path = path
     return best_path, best_scores, best, all_scores
 
+
+def plot_model_scores(path:str):
+    all_scores = json.load(open(os.path.join(path, ALL_SCORES_FILE)))
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    plt.plot(np.arange(len(all_scores)), all_scores)
+    plt.ylabel("Score")
+    plt.xlabel("Episode #")
+    plt.show()
 
 
 def train(outputdir:str=None, max_training_hours=48, max_episodes:int=-1, max_steps:int=None):
@@ -84,6 +117,9 @@ if __name__ == '__main__':
     parser.add_argument("--max_training_hours", help="Maximum hours training session should run", type=int, default=48)
     parser.add_argument("--max_episodes", help="maximum episodes to run", type=int, default=None)
     parser.add_argument("--max_steps", help="maximum steps per episodes to run", type=int, default=None)
+    parser.add_argument("--sorted", help="return list of models sorted by their performance", action="store_true")
+    parser.add_argument("--plot", help="scores of a given model", type=str, default=None)
+
     args = parser.parse_args()
     outputdir = args.results_dir
     do_train = args.train
@@ -92,11 +128,10 @@ if __name__ == '__main__':
     max_steps = args.max_steps
     if do_train:
         train(outputdir, hours, max_episodes, max_steps)
-    path, best_scores, best, all_scores = find_best_model(outputdir)
-    print("best model path", path, " best mean score", best, "best scores ", best_scores)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    plt.plot(np.arange(len(all_scores)), all_scores)
-    plt.ylabel("Score")
-    plt.xlabel("Episode #")
-    plt.show()
+    if args.sorted:
+        paths, scores = sort_models_by_performance(outputdir)
+        print(list(zip(paths, scores)))
+    else:
+        path, best_scores, best, all_scores = find_best_model(outputdir)
+        print("best model path", path, " best mean score", best, "best scores ", best_scores)
+        plot_model_scores(path)

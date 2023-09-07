@@ -90,7 +90,8 @@ class Trainer():
                                               ConstantParameterProvider.__name__]).tolist(),
             "beta" : None,
             "lossFn" : np.random.choice([F.mse_loss.__name__, F.l1_loss.__name__, F.smooth_l1_loss.__name__]).tolist(),
-            "optimizer" : np.random.choice([optim.Adam.__name__, optim.RMSprop.__name__]).tolist()
+            "optimizer" : np.random.choice([optim.Adam.__name__, optim.RMSprop.__name__]).tolist(),
+            "state_seq_len" : np.random.randint(2, 8)
         }
 
         if hpdict['epsProvider'] == 'ConstantParameterProvider':
@@ -162,11 +163,14 @@ class Trainer():
 
         hpdict['state_size'] = state_size
         hpdict['action_size'] = action_size
+        if not 'state_seq_len' in hpdict:
+            hpdict['state_seq_len'] = 1
+        state_seq_len = hpdict['state_seq_len']
         hyper_param_file = os.path.join(self.my_path, HYPER_PARAMETERS_FILE)
         self.save_json(hpdict, hyper_param_file)
         optimizer = partial(optim_mapper[hpdict["optimizer"]], lr=hpdict['alpha'])
         agentClass = agent_mapper[hpdict['agent']]
-        agent = agentClass(state_size, action_size, epsProvider, gammaProvider, replayBuffer,
+        agent = agentClass(state_size*state_seq_len, action_size, epsProvider, gammaProvider, replayBuffer,
                            model_mapper[hpdict["model"]], optimizer, loss_fn_mapper[hpdict["lossFn"]], 
                            hpdict["update_every"], hpdict["update_target_every"], arch, hpdict['useTau'], hpdict['tau'])
         
@@ -175,20 +179,26 @@ class Trainer():
         scores_window = deque(maxlen=hpdict["scores_window_len"])
         last_best_score = -np.inf
         started = datetime.now()
+        state_q = deque(maxlen = hpdict['state_seq_len'])
         for episode in range(1, hpdict["num_episodes"] + 1):
             if (episode - 1) % 100 == 0:
                 print("Starting Episode number:", episode)
             env_info = env.reset(train_mode=True)[brain_name]
-            state = env_info.vector_observations[0]
+            while len(state_q) < state_seq_len:
+                state = env_info.vector_observations[0]
+                state_q.append(state)
+
             score = 0
             agent.prepare_for_new_episode()
             for t in range(hpdict["max_steps"]):
+                state = np.concatenate(state_q, axis=0)
                 action = agent.act(state)
                 env_info = env.step(action)[brain_name]
                 next_state = env_info.vector_observations[0]
+                state_q.append(next_state)
                 reward = env_info.rewards[0]
                 done = env_info.local_done[0]
-                agent.step(state, action, reward, next_state, done)
+                agent.step(state, action, reward, np.concatenate(state_q), done)
                 score += reward
                 if done:
                     break
@@ -196,8 +206,11 @@ class Trainer():
 
             scores_window.append(score)
             scores.append(score)
-            if (episode - 1) % 100 == 0:
-                print("latest score is", score)
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, np.mean(scores_window)), end="")
+            if episode % 100 == 0:
+                print('\rEpisode {}\tAverage Score: {:.2f}'.format(episode, np.mean(scores_window)))
+            #if (episode - 1) % 100 == 0:
+            #    print("latest score is", score)
             current_score = np.mean(scores_window)
             if len(scores_window) >= hpdict['scores_window_len'] and current_score > last_best_score:
                 torch.save(agent.lmodel.state_dict(), os.path.join(self.my_path, CHECKPOINT_FILE))
@@ -218,7 +231,8 @@ class Trainer():
         self.save_json(scores, os.path.join(self.my_path, ALL_SCORES_FILE))
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        plt.plot(np.arange(len(best_scores)), best_scores)
+        #plt.plot(np.arange(len(best_scores)), best_scores)
+        plt.plot(np.arange(len(scores)), scores)
         plt.ylabel("Score")
         plt.xlabel("Episode #")
         #plt.show()

@@ -1,8 +1,16 @@
+[//]: # (Image References)
+
+[image1]: https://raw.githubusercontent.com/rahulkhona/drlnd-navigation-project/main/chart.png "Trained Agent"
 # High level report
 ## Learning Algorithm
-The learning algorithm uses 3 dense layeer DQN model. The 2 hidden layers have 64 features and the final output layer  produces 4 outputs, one for each of the actions. The agent uses Fixed Q-Target algorithm and it uses non priority replay buffer. They key change in the system is that the system concatenates current state returned by environemnt along with 3 prior remembered prior states to form the state that the agent and the models use. This has allowed the agent to learn and solve the environment in 451 states. Without use of state history, the agent was not able to learn with several different combinations of hyper paramters.
+The learning algorithm uses 3 dense layeer DQN model. The 2 hidden layers have 64 features and the final output layer  produces 4 outputs, one for each of the actions. The agent uses Fixed Q-Target algorithm and it uses non priority replay buffer.
 
-## model file name
+ They key change in the system is that the system concatenates current state returned by environemnt along with 3 prior remembered prior states to form the state that the agent and the models use. **This has allowed the agent to learn and solve the environment in 451 states.** Without use of state history, the agent was not able to learn with several different combinations of hyper paramters.
+
+![Trained Agent][Image1]
+
+
+## Model file name
 checkpoint.pth
 
 ## Hyper Parameters used

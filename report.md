@@ -2,6 +2,9 @@
 ## Learning Algorithm
 The learning algorithm uses 3 dense layeer DQN model. The 2 hidden layers have 64 features and the final output layer  produces 4 outputs, one for each of the actions. The agent uses Fixed Q-Target algorithm and it uses non priority replay buffer. They key change in the system is that the system concatenates current state returned by environemnt along with 3 prior remembered prior states to form the state that the agent and the models use. This has allowed the agent to learn and solve the environment in 451 states. Without use of state history, the agent was not able to learn with several different combinations of hyper paramters.
 
+## model file name
+checkpoint.pth
+
 ## Hyper Parameters used
 BUFFER_SIZE = int(1e5)  
 BATCH_SIZE = 64         
